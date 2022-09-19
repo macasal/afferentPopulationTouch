@@ -13,11 +13,6 @@ from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from sklearn.model_selection import cross_val_score
 from sklearn.metrics import accuracy_score
 
-file = '/home/neutouch/afferentProject/data/dataset/dataApr21_40t.pkl'
-file = open(file, "rb")
-data = pickle.load(file)
-file.close()
-
 
 file = '/home/neutouch/afferentProject/data/dataset/indexes_40t.pkl'
 file = open(file, "rb")
