@@ -6,7 +6,6 @@ warnings.simplefilter
 import random 
 import os
 import touchsim as ts
-from funcNMF import *
 import copy
 
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
