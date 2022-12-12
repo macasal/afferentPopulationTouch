@@ -130,6 +130,108 @@ for den in d:
     res_file.close()
         
         
+   def generateR(data, **args):
+    # input arguments: 
+    #     data         : dictionary with spike trains and information about spike trains (required keys: 'r', 
+    #                       'nTrials', 'affClass', 'sIndex', 'duration')
+    #     poisson     : dictionary with inhibitory and excitatory spike train to sum on the spikes
+    #     tbin        : length of time bins (default: 0.01 s)
+    #     trainFrac   : fraction of training trials (default: 50%)
+    #     affclass  : classes of afferents to consider (default: all)
+    #     tmin :      istant from which start considering spikes
+    #     tmax :      instant from which stop considering spikes
+    # output: 
+    #     Rtrain      : training data matrix (#neurons * #bins X #training trials)
+    #     Rtest       : test data matrix (#neurons * #bins X #test trials)
+    #     labelaTrain : labels of the training trails
+    #     labelsTest  : labels of the test trials
+    poisson = args.get('poisson', None)
+    trainFrac = args.get('trainFrac', 0.5)
+    tbin = args.get('tbin', 0.01)
+    tmin = args.get('tmin', 0)
+    tmax = args.get('tmax', data['duration'])
+    trainIndex = args.get('trainIndex', [])
+    testIndex = args.get('testIndex', [])
+
+    N = data['nAfferents']
+
+    bins = np.arange(tmin,tmax+tbin,tbin)
+    T = len(bins)-1
+                
+    R = np.empty((0,N*T))
+    for tr in range(len(data['r'])):
+        Rtrial = np.empty((1,0))
+        for n in range(N):
+            spikes = data['r'][tr][n]
+            if poisson:
+                spikes = np.append(data['r'][tr][n], poisson['exc'][tr,n])
+                inh = poisson['inh'][tr,n]
+            Raff = np.zeros((1,T))
+            for s in range(len(spikes)):
+                if spikes[s]>= tmin and spikes[s]<=tmax:
+                    t = int(spikes[s]/tbin-tmin/tbin)
+                    if t == T: 
+                        t = T-1
+                    Raff[:,t]+=1
+            if poisson:
+                for i in range(len(inh)):
+                    if inh[i]>tmin and inh[i]<tmax:
+                        t = int(inh[i]/tbin-tmin/tbin)
+                        if t == T: 
+                            t = T-1
+                        Raff[:,t]-=1
+                        if Raff[:,t] < 0:
+                            Raff[:,t] = 0
+            Rtrial = np.append(Rtrial, Raff, axis=1)
+        print(tr)
+        R = np.append(R,Rtrial, axis=0)   
+    
+        
+    classes = int(len(np.unique(data['sIndex'])))
+    labelsTrain = np.empty([0, int(data['nTrials']*trainFrac)])
+    labelsTest = np.empty([0, int(data['nTrials']*(1-trainFrac))])
+    Rtrain = np.empty((0,N*T))
+    Rtest = np.empty((0,N*T))
+    if trainIndex ==[] or testIndex==[]:
+        for c in range(classes):
+            randomIndex = np.arange(c*data['nTrials'],c*data['nTrials']+data['nTrials'])
+            random.shuffle(randomIndex)
+            trainIndex = randomIndex[0:int(data['nTrials']*trainFrac)]
+            testIndex = randomIndex[int(data['nTrials']*trainFrac):]
+            Rtrain = np.append(Rtrain, R[trainIndex,:], axis=0)
+            Rtest = np.append(Rtest, R[testIndex,:], axis=0)
+            labels = data['sIndex'][c*data['nTrials']:c*data['nTrials']+data['nTrials']]
+            print(labels)
+            labelsTrain = np.append(labelsTrain, labels[0:int(data['nTrials']*trainFrac)])
+            labelsTest = np.append(labelsTest, labels[int(data['nTrials']*trainFrac):])
+        trainIndex = np.arange(int(len(labelsTrain)))
+        random.shuffle(trainIndex)
+        testIndex = np.arange(int(len(labelsTest)))
+        random.shuffle(testIndex)
+        labelsTrain = labelsTrain[trainIndex] 
+        labelsTest = labelsTest[testIndex] 
+        labelsTrain = labelsTrain.astype(int)
+        labelsTest = labelsTest.astype(int)
+        Rtrain = Rtrain[trainIndex]
+        Rtest = Rtest[testIndex]
+    else:
+        print('use existing train-test indexes')
+        Rtrain = R[trainIndex,:]
+        Rtest = R[testIndex, :]
+        labels = np.empty([0])
+        for c in range(classes):
+           labels = np.append(labels,data['sIndex'][c*data['nTrials']:c*data['nTrials']+data['nTrials']],axis=0 )
+        labelsTrain = labels[trainIndex]   
+        labelsTest = labels[testIndex]
+        
+
+    Rtrain = Rtrain.T
+    Rtest = Rtest.T
+   
+   
+    return Rtrain, Rtest, labelsTrain, labelsTest
+
+        
         
         
         
